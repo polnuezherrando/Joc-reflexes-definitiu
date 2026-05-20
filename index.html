@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Joc de reflexos</title>
+
+<style>
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: Arial;
+    background: #f2f2f2;
+    text-align: center;
+}
+
+h1 { margin-top: 20px; }
+
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    background: #0095f6;
+    color: white;
+    cursor: pointer;
+    position: absolute;
+}
+
+#startBtn {
+    position: static;
+    margin-top: 20px;
+}
+
+#ranking {
+    position: absolute;
+    top: 60px;
+    left: 20px;
+    text-align: left;
+}
+
+#record {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎮 Joc de reflexos</h1>
+
+<button id="startBtn" onclick="startGame()">Començar</button>
+
+<h3 id="record">🏆 Record: --</h3>
+<h3 id="ranking">🏆 Ranking:</h3>
+
+<!-- 🔥 FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<script>
+/* 🔥 CONFIG FIREBASE */
+const firebaseConfig = {
+  apiKey: "AIzaSyCPVAS1PGH6AAK-5y6DT_nXFxIM51YYiUQ",
+  authDomain: "joc-reflexos.firebaseapp.com",
+  databaseURL: "https://joc-reflexos-default-rtdb.europe-west1.firebasedatabase.app/",
+  projectId: "joc-reflexos",
+  storageBucket: "joc-reflexos.firebasestorage.app",
+  messagingSenderId: "73207168540",
+  appId: "1:73207168540:web:e6b39de79851a9efdfa9d9"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* 🧠 VARIABLES */
+let startTime;
+let clicked = 0;
+let total = 10;
+
+/* 🏆 RECORD */
+let record = localStorage.getItem("record");
+record = record ? parseFloat(record) : null;
+
+window.onload = function () {
+    loadRanking();
+};
+
+/* ▶️ START GAME */
+function startGame() {
+    document.getElementById("startBtn").disabled = true;
+
+    clicked = 0;
+    startTime = Date.now();
+
+    document.querySelectorAll("button:not(#startBtn)").forEach(b => b.remove());
+
+    for (let i = 0; i < total; i++) {
+        createButton();
+    }
+}
+
+/* 🎯 BOTONES */
+function createButton() {
+    let btn = document.createElement("button");
+    btn.innerText = "CLICK";
+
+    btn.style.left = Math.random() * (window.innerWidth - 80) + "px";
+    btn.style.top = Math.random() * (window.innerHeight - 100) + "px";
+
+    btn.onclick = function () {
+        btn.remove();
+        clicked++;
+
+        if (clicked === total) {
+            let time = (Date.now() - startTime) / 1000;
+
+            document.getElementById("record").innerText =
+                "🏁 Tiempo: " + time + "s";
+
+            if (!record || time < record) {
+                record = time;
+                localStorage.setItem("record", record);
+            }
+
+            let playerName = prompt("Fica un nom:");
+            if (!playerName) playerName = "Anonim";
+
+            // 🔥 GUARDAR EN FIREBASE (IMPORTANTE)
+            db.ref("ranking").push({
+                name: playerName,
+                time: Number(time),
+                date: Date.now()
+            });
+
+            document.getElementById("startBtn").disabled = false;
+        }
+    };
+
+    document.body.appendChild(btn);
+}
+
+/* 🌍 RANKING */
+function loadRanking() {
+    db.ref("ranking").on("value", (snapshot) => {
+        let data = snapshot.val();
+
+        if (!data) {
+            document.getElementById("ranking").innerHTML =
+                "🏆 Ranking:<br>Sin datos";
+            return;
+        }
+
+        let list = Object.values(data);
+
+        list.sort((a, b) => a.time - b.time);
+        list = list.slice(0, 5);
+
+        let text = "🏆 Ranking:<br>";
+
+        list.forEach((p, i) => {
+            text += (i + 1) + ". " + p.name + " - " + p.time + "s<br>";
+        });
+
+        document.getElementById("ranking").innerHTML = text;
+    });
+}
+</script>
+
+</body>
+</html>
